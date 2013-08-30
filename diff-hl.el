@@ -126,7 +126,7 @@
 
 (defmacro diff-hl-with-diff-switches (body)
   `(let ((vc-git-diff-switches nil)
-         (vc-hg-diff-switches nil)
+         (vc-hg-diff-switches '("-U0" "-r-2"))
          (vc-svn-diff-switches nil)
          (vc-diff-switches '("-U0"))
          (vc-disable-async-diff t))
@@ -138,10 +138,15 @@
     (when backend
       (let ((state (vc-state file backend)))
         (cond
+         ((eq state 'added)
+          `((1 ,(line-number-at-pos (point-max)) insert)))
+         ((eq state 'removed)
+          `((1 ,(line-number-at-pos (point-max)) delete)))
          ((or (eq state 'edited)
               (and (eq state 'up-to-date)
                    ;; VC state is stale in after-revert-hook.
-                   revert-buffer-in-progress-p))
+                   revert-buffer-in-progress-p)
+              (eq state 'up-to-date))
           (let* ((buf-name " *diff-hl* ")
                  res)
             (diff-hl-with-diff-switches
@@ -166,10 +171,7 @@
                         (cl-incf line))
                       (push (list line len type) res))))))
             (nreverse res)))
-         ((eq state 'added)
-          `((1 ,(line-number-at-pos (point-max)) insert)))
-         ((eq state 'removed)
-          `((1 ,(line-number-at-pos (point-max)) delete))))))))
+         )))))
 
 (defun diff-hl-update ()
   (let ((changes (diff-hl-changes))
